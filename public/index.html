@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-time Plot</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <canvas id="combinedChart" width="400" height="200"></canvas>
+
+  <script>
+    const socket = io();
+
+    let initialAge = null;
+
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+    const combinedChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Vbat (mV)',
+            data: [],
+            yAxisID: 'y-left',
+            borderColor: 'rgba(255, 0, 0, 1)',
+            borderWidth: 1,
+            fill: false
+          },
+          {
+            label: 'Ibat (mA)',
+            data: [],
+            yAxisID: 'y-right',
+            borderColor: 'rgba(0, 0, 200, 1)',
+            borderWidth: 1,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        scales: {
+          x: {
+            type: 'linear',
+            position: 'bottom',
+            title: {
+              display: true,
+              text: 'Age (ms)'
+            }
+          },
+          'y-left': {
+            type: 'linear',
+            position: 'left',
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Vbat (mV)'
+            }
+          },
+          'y-right': {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Ibat (mA)'
+            },
+            grid: {
+              drawOnChartArea: false // only want the grid lines for one axis to show up
+            }
+          }
+        }
+      }
+    });
+
+    socket.on('serialData', function(data) {
+      if (data) {
+        // Set the initial age
+        if (initialAge === null) {
+          initialAge = data.VbatAge;
+        }
+
+        // Calculate relative age
+        const relativeAge = data.VbatAge - initialAge;
+
+        combinedChart.data.labels.push(relativeAge); // Assuming age is same for both Vbat and Ibat
+        combinedChart.data.datasets[0].data.push({ x: relativeAge, y: data.Vbat });
+        combinedChart.data.datasets[1].data.push({ x: relativeAge, y: data.Ibat });
+        combinedChart.update();
+      }
+    });
+  </script>
+</body>
+</html>
