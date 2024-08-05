@@ -1,40 +1,26 @@
 const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
-
-const port = new SerialPort({ path: 'COM13', baudRate: 115200 });
-const parser = port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const dataFilePath = 'plotData.json';
+const COMMAND = 'battery_charger_misc_read 5000';  // Command to send through the serial port
+
+let plotData = {
+  labels: [],
+  vbat: [],
+  ibat: []
+};
+
 app.use(express.static('public'));
 
-port.on('error', function(err) {
-  console.log('Error: ', err.message);
-});
-
-port.on('open', function() {
-  console.log('Port opened');
-  // Write "init 5000" to the COM port to initiate data transmission
-  port.write('battery_charger_misc_read 5000\n', function(err) {
-    if (err) {
-      return console.log('Error on write: ', err.message);
-    }
-    console.log('Message written: battery_charger_misc_read 5000');
-  });
-
-  parser.on('data', function(data) {
-    console.log('Data received: ', data);
-    const parsedData = parseData(data);
-    io.emit('serialData', parsedData);
-  });
-});
-
+// Function to parse data from the serial port
 function parseData(data) {
   const regex = /Vin:\s*(\d+) mV age:\s*(\d+)\. Vbat:\s*(\d+) mV age:\s*(\d+)\. Ibat:\s*([-\d]+) mA age:\s*(\d+)\. cv_timer:\s*(\d+) s age:\s*(\d+)\. max_cv_time:\s*(\d+) s age:\s*(\d+)\./;
   const match = data.match(regex);
@@ -55,18 +41,56 @@ function parseData(data) {
   return null;
 }
 
-// Route to close the serial port
-app.get('/close-port', (req, res) => {
-  if (port.isOpen) {
-    port.close((err) => {
-      if (err) {
-        return res.status(500).send('Error closing port: ' + err.message);
-      }
-      res.send('Port closed successfully');
-    });
-  } else {
-    res.send('Port is already closed');
-  }
+// Load plot data from file if it exists
+if (fs.existsSync(dataFilePath)) {
+  const rawData = fs.readFileSync(dataFilePath);
+  plotData = JSON.parse(rawData);
+}
+
+// Endpoint to serve the initial plot data
+app.get('/initial-data', (req, res) => {
+  res.json(plotData);
+});
+
+// Endpoint to reset data
+app.post('/reset-data', (req, res) => {
+  plotData = { labels: [], vbat: [], ibat: [] };
+  fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
+  res.send('Data reset');
+});
+
+const port = new SerialPort({ path: 'COM13', baudRate: 115200 });
+const parser = port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+
+port.on('error', function(err) {
+  console.log('Error: ', err.message);
+});
+
+port.on('open', function() {
+  console.log('Port opened');
+  // Write COMMAND to the COM port to initiate data transmission
+  port.write(`${COMMAND}\n`, function(err) {
+    if (err) {
+      return console.log('Error on write: ', err.message);
+    }
+    console.log(`Message written: ${COMMAND}`);
+  });
+
+  parser.on('data', function(data) {
+    console.log('Data received: ', data);
+    const parsedData = parseData(data);
+    if (parsedData) {
+      plotData.labels.push(parsedData.VbatAge);
+      plotData.vbat.push(parsedData.Vbat);
+      plotData.ibat.push(parsedData.Ibat);
+      fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
+      io.emit('serialData', {
+        Vbat: parsedData.Vbat,
+        Ibat: parsedData.Ibat,
+        VbatAge: parsedData.VbatAge
+      });
+    }
+  });
 });
 
 server.listen(3000, () => {

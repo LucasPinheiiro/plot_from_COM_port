@@ -6,14 +6,34 @@
   <title>Real-time Plot</title>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #resetButton {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: red;
+      color: white;
+      border: none;
+      cursor: pointer;
+      opacity: 0.8; /* Add transparency */
+    }
+    #resetButton:hover {
+      opacity: 1; /* Remove transparency on hover */
+    }
+  </style>
 </head>
 <body>
-  <canvas id="combinedChart" width="400" height="200"></canvas>
+  <div id="container">
+    <canvas id="combinedChart" width="400" height="200"></canvas>
+    <button id="resetButton">Reset Data</button>
+  </div>
 
   <script>
     const socket = io();
-
-    let initialAge = null;
 
     const ctx = document.getElementById('combinedChart').getContext('2d');
     const combinedChart = new Chart(ctx, {
@@ -25,7 +45,7 @@
             label: 'Vbat (mV)',
             data: [],
             yAxisID: 'y-left',
-            borderColor: 'rgba(255, 0, 0, 1)',
+            borderColor: 'rgba(75, 192, 192, 1)',
             borderWidth: 1,
             fill: false
           },
@@ -33,7 +53,7 @@
             label: 'Ibat (mA)',
             data: [],
             yAxisID: 'y-right',
-            borderColor: 'rgba(0, 0, 200, 1)',
+            borderColor: 'rgba(153, 102, 255, 1)',
             borderWidth: 1,
             fill: false
           }
@@ -46,7 +66,7 @@
             position: 'bottom',
             title: {
               display: true,
-              text: 'Age (ms)'
+              text: 'Age (s)'
             }
           },
           'y-left': {
@@ -74,21 +94,38 @@
       }
     });
 
+    // Fetch initial plot data from server
+    fetch('/initial-data')
+      .then(response => response.json())
+      .then(data => {
+        if (data.labels.length > 0) {
+          combinedChart.data.labels = data.labels;
+          combinedChart.data.datasets[0].data = data.vbat.map((value, index) => ({ x: data.labels[index], y: value }));
+          combinedChart.data.datasets[1].data = data.ibat.map((value, index) => ({ x: data.labels[index], y: value }));
+          combinedChart.update();
+        }
+      });
+
     socket.on('serialData', function(data) {
       if (data) {
-        // Set the initial age
-        if (initialAge === null) {
-          initialAge = data.VbatAge;
-        }
+        // Use the age directly as it is already absolute
+        const absoluteAge = data.VbatAge;
 
-        // Calculate relative age
-        const relativeAge = data.VbatAge - initialAge;
-
-        combinedChart.data.labels.push(relativeAge); // Assuming age is same for both Vbat and Ibat
-        combinedChart.data.datasets[0].data.push({ x: relativeAge, y: data.Vbat });
-        combinedChart.data.datasets[1].data.push({ x: relativeAge, y: data.Ibat });
+        combinedChart.data.labels.push(absoluteAge); // Assuming age is same for both Vbat and Ibat
+        combinedChart.data.datasets[0].data.push({ x: absoluteAge, y: data.Vbat });
+        combinedChart.data.datasets[1].data.push({ x: absoluteAge, y: data.Ibat });
         combinedChart.update();
       }
+    });
+
+    document.getElementById('resetButton').addEventListener('click', function() {
+      fetch('/reset-data', { method: 'POST' })
+        .then(() => {
+          combinedChart.data.labels = [];
+          combinedChart.data.datasets[0].data = [];
+          combinedChart.data.datasets[1].data = [];
+          combinedChart.update();
+        });
     });
   </script>
 </body>
