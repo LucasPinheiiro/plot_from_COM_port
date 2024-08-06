@@ -22,21 +22,21 @@ let plotData = {
 
 // Function to parse data from the serial port
 function parseData(data) {
-  const regex = /Vin:\s*(\d+) mV age:\s*(\d+)\. Vbat:\s*(\d+) mV age:\s*(\d+)\. Ibat:\s*([-\d]+) mA age:\s*(\d+)\. cv_timer:\s*(\d+) s age:\s*(\d+)\. max_cv_time:\s*(\d+) s age:\s*(\d+)\. soc:\s*(\d+)\./;
+  const regex = /Vin:\s*(\d+) mV age:\s*(\d+)\. Vbat:\s*(\d+) mV age:\s*(\d+)\. Ibat:\s*([-\d]+) mA age:\s*(\d+)\. cv_timer:\s*(\d+) s age:\s*(\d+)\. max_cv_time:\s*(\d+) s age:\s*(\d+)\.?( soc:\s*(\d+)\.)?/;
   const match = data.match(regex);
   if (match) {
     return {
       Vin: parseInt(match[1]),
-      VinAge: parseInt(match[2]),
+      VinAge: parseInt(match[2]) / 1000, // Convert milliseconds to seconds
       Vbat: parseInt(match[3]),
-      VbatAge: parseInt(match[4]),
+      VbatAge: parseInt(match[4]) / 1000, // Convert milliseconds to seconds
       Ibat: parseInt(match[5]),
-      IbatAge: parseInt(match[6]),
+      IbatAge: parseInt(match[6]) / 1000, // Convert milliseconds to seconds
       cvTimer: parseInt(match[7]),
-      cvTimerAge: parseInt(match[8]),
+      cvTimerAge: parseInt(match[8]) / 1000, // Convert milliseconds to seconds
       maxCvTime: parseInt(match[9]),
-      maxCvTimeAge: parseInt(match[10]),
-      soc: parseInt(match[11])
+      maxCvTimeAge: parseInt(match[10]) / 1000, // Convert milliseconds to seconds
+      soc: match[12] ? parseInt(match[12]) : null
     };
   }
   return null;
