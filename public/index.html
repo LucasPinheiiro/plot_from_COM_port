@@ -7,15 +7,22 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    #container {
+    #mainContainer {
       display: flex;
       flex-direction: column;
       align-items: center;
+      width: 100%;
+    }
+    #plotContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 90%;
     }
     #resetButton {
-      margin-top: 20px;
       padding: 10px 20px;
       background-color: red;
+      margin-left: 10px;
       color: white;
       border: none;
       cursor: pointer;
@@ -30,7 +37,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      border: 1px solid #000;
+      border: 1px solid #00000000;
       padding: 10px;
     }
     #responseContainer {
@@ -61,20 +68,22 @@
       opacity: 0.6;
     }
     #sendButton:hover {
-        opacity: 1;
+      opacity: 1;
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <canvas id="combinedChart" width="400" height="200"></canvas>
-    <button id="resetButton">Reset Data</button>
-  </div>
-  <div id="consoleContainer">
-    <div id="responseContainer"></div>
-    <div id="inputContainer">
-      <input type="text" id="commandInput" placeholder="Enter command">
-      <button id="sendButton">Send Command</button>
+  <div id="mainContainer">
+    <div id="plotContainer">
+      <canvas id="combinedChart" width="400" height="200"></canvas>
+    </div>
+    <div id="consoleContainer">
+      <div id="responseContainer"></div>
+      <div id="inputContainer">
+        <input type="text" id="commandInput" placeholder="battery_charger_misc_read">
+        <button id="sendButton">Send Command</button>
+        <button id="resetButton">Reset Data</button>
+      </div>
     </div>
   </div>
 
