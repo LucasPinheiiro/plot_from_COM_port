@@ -56,6 +56,14 @@
             borderColor: 'rgba(153, 102, 255, 1)',
             borderWidth: 1,
             fill: false
+          },
+          {
+            label: 'SOC (%)',
+            data: [],
+            yAxisID: 'y-soc',
+            borderColor: 'rgba(255, 159, 64, 1)',
+            borderWidth: 1,
+            fill: false
           }
         ]
       },
@@ -89,6 +97,21 @@
             grid: {
               drawOnChartArea: false // only want the grid lines for one axis to show up
             }
+          },
+          'y-soc': {
+            type: 'linear',
+            position: 'right',
+            beginAtZero: true,
+            min: 0,  // Set minimum value for SOC axis
+            max: 100,  // Set maximum value for SOC axis
+            title: {
+              display: true,
+              text: 'SOC (%)'
+            },
+            grid: {
+              drawOnChartArea: false // only want the grid lines for one axis to show up
+            },
+            offset: true // Offset to avoid overlapping with the right y-axis
           }
         }
       }
@@ -102,6 +125,7 @@
           combinedChart.data.labels = data.labels;
           combinedChart.data.datasets[0].data = data.vbat.map((value, index) => ({ x: data.labels[index], y: value }));
           combinedChart.data.datasets[1].data = data.ibat.map((value, index) => ({ x: data.labels[index], y: value }));
+          combinedChart.data.datasets[2].data = data.soc.map((value, index) => ({ x: data.labels[index], y: value }));
           combinedChart.update();
         }
       });
@@ -111,9 +135,10 @@
         // Use the age directly as it is already absolute
         const absoluteAge = data.VbatAge;
 
-        combinedChart.data.labels.push(absoluteAge); // Assuming age is same for both Vbat and Ibat
+        combinedChart.data.labels.push(absoluteAge); // Assuming age is same for all datasets
         combinedChart.data.datasets[0].data.push({ x: absoluteAge, y: data.Vbat });
         combinedChart.data.datasets[1].data.push({ x: absoluteAge, y: data.Ibat });
+        combinedChart.data.datasets[2].data.push({ x: absoluteAge, y: data.soc });
         combinedChart.update();
       }
     });
@@ -124,6 +149,7 @@
           combinedChart.data.labels = [];
           combinedChart.data.datasets[0].data = [];
           combinedChart.data.datasets[1].data = [];
+          combinedChart.data.datasets[2].data = [];
           combinedChart.update();
         });
     });

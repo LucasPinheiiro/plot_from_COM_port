@@ -4,6 +4,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
+const path = require('path');  // Add path module
 
 const app = express();
 const server = http.createServer(app);
@@ -15,14 +16,13 @@ const COMMAND = 'battery_charger_misc_read 5000';  // Command to send through th
 let plotData = {
   labels: [],
   vbat: [],
-  ibat: []
+  ibat: [],
+  soc: []
 };
-
-app.use(express.static('public'));
 
 // Function to parse data from the serial port
 function parseData(data) {
-  const regex = /Vin:\s*(\d+) mV age:\s*(\d+)\. Vbat:\s*(\d+) mV age:\s*(\d+)\. Ibat:\s*([-\d]+) mA age:\s*(\d+)\. cv_timer:\s*(\d+) s age:\s*(\d+)\. max_cv_time:\s*(\d+) s age:\s*(\d+)\./;
+  const regex = /Vin:\s*(\d+) mV age:\s*(\d+)\. Vbat:\s*(\d+) mV age:\s*(\d+)\. Ibat:\s*([-\d]+) mA age:\s*(\d+)\. cv_timer:\s*(\d+) s age:\s*(\d+)\. max_cv_time:\s*(\d+) s age:\s*(\d+)\. soc:\s*(\d+)\./;
   const match = data.match(regex);
   if (match) {
     return {
@@ -36,6 +36,7 @@ function parseData(data) {
       cvTimerAge: parseInt(match[8]),
       maxCvTime: parseInt(match[9]),
       maxCvTimeAge: parseInt(match[10]),
+      soc: parseInt(match[11])
     };
   }
   return null;
@@ -43,9 +44,24 @@ function parseData(data) {
 
 // Load plot data from file if it exists
 if (fs.existsSync(dataFilePath)) {
-  const rawData = fs.readFileSync(dataFilePath);
-  plotData = JSON.parse(rawData);
+  try {
+    const rawData = fs.readFileSync(dataFilePath);
+    plotData = JSON.parse(rawData);
+  } catch (err) {
+    console.error('Error reading plotData.json:', err);
+    plotData = { labels: [], vbat: [], ibat: [], soc: [] };
+    fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
+  }
 }
+
+// Check if plotData is empty and populate it with the initial structure
+if (!plotData.labels || plotData.labels.length === 0) {
+  plotData = { labels: [], vbat: [], ibat: [], soc: [] };
+  fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
+}
+
+// Serve static files from the "public" directory
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Endpoint to serve the initial plot data
 app.get('/initial-data', (req, res) => {
@@ -54,7 +70,7 @@ app.get('/initial-data', (req, res) => {
 
 // Endpoint to reset data
 app.post('/reset-data', (req, res) => {
-  plotData = { labels: [], vbat: [], ibat: [] };
+  plotData = { labels: [], vbat: [], ibat: [], soc: [] };
   fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
   res.send('Data reset');
 });
@@ -83,11 +99,13 @@ port.on('open', function() {
       plotData.labels.push(parsedData.VbatAge);
       plotData.vbat.push(parsedData.Vbat);
       plotData.ibat.push(parsedData.Ibat);
+      plotData.soc.push(parsedData.soc);
       fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
       io.emit('serialData', {
         Vbat: parsedData.Vbat,
         Ibat: parsedData.Ibat,
-        VbatAge: parsedData.VbatAge
+        VbatAge: parsedData.VbatAge,
+        soc: parsedData.soc
       });
     }
   });
