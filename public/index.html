@@ -19,10 +19,49 @@
       color: white;
       border: none;
       cursor: pointer;
-      opacity: 0.8; /* Add transparency */
+      opacity: 0.6;
     }
     #resetButton:hover {
-      opacity: 1; /* Remove transparency on hover */
+      opacity: 1;
+    }
+    #consoleContainer {
+      margin-top: 10px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid #000;
+      padding: 10px;
+    }
+    #responseContainer {
+      width: 100%;
+      max-height: 100px;
+      overflow-y: auto;
+      border: 1px solid #000000;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+    #inputContainer {
+      display: flex;
+      width: 100%;
+      justify-content: space-between;
+    }
+    #commandInput {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid rgb(0, 0, 0);
+      margin-right: 10px;
+    }
+    #sendButton {
+      padding: 10px 20px;
+      background-color: rgb(48, 156, 48);
+      color: white;
+      border: none;
+      cursor: pointer;
+      opacity: 0.6;
+    }
+    #sendButton:hover {
+        opacity: 1;
     }
   </style>
 </head>
@@ -30,6 +69,13 @@
   <div id="container">
     <canvas id="combinedChart" width="400" height="200"></canvas>
     <button id="resetButton">Reset Data</button>
+  </div>
+  <div id="consoleContainer">
+    <div id="responseContainer"></div>
+    <div id="inputContainer">
+      <input type="text" id="commandInput" placeholder="Enter command">
+      <button id="sendButton">Send Command</button>
+    </div>
   </div>
 
   <script>
@@ -95,29 +141,28 @@
               text: 'Ibat (mA)'
             },
             grid: {
-              drawOnChartArea: false // only want the grid lines for one axis to show up
+              drawOnChartArea: false
             }
           },
           'y-soc': {
             type: 'linear',
             position: 'right',
             beginAtZero: true,
-            min: 0,  // Set minimum value for SOC axis
-            max: 100,  // Set maximum value for SOC axis
+            min: 0,
+            max: 100,
             title: {
               display: true,
               text: 'SOC (%)'
             },
             grid: {
-              drawOnChartArea: false // only want the grid lines for one axis to show up
+              drawOnChartArea: false
             },
-            offset: true // Offset to avoid overlapping with the right y-axis
+            offset: true
           }
         }
       }
     });
 
-    // Fetch initial plot data from server
     fetch('/initial-data')
       .then(response => response.json())
       .then(data => {
@@ -132,10 +177,8 @@
 
     socket.on('serialData', function(data) {
       if (data) {
-        // Use the age directly as it is already absolute
         const absoluteAge = data.VbatAge;
-
-        combinedChart.data.labels.push(absoluteAge); // Assuming age is same for all datasets
+        combinedChart.data.labels.push(absoluteAge);
         combinedChart.data.datasets[0].data.push({ x: absoluteAge, y: data.Vbat });
         combinedChart.data.datasets[1].data.push({ x: absoluteAge, y: data.Ibat });
         combinedChart.data.datasets[2].data.push({ x: absoluteAge, y: data.soc });
@@ -152,6 +195,19 @@
           combinedChart.data.datasets[2].data = [];
           combinedChart.update();
         });
+    });
+
+    document.getElementById('sendButton').addEventListener('click', function() {
+      const command = document.getElementById('commandInput').value;
+      socket.emit('sendCommand', command);
+    });
+
+    socket.on('commandResponse', function(response) {
+      const responseContainer = document.getElementById('responseContainer');
+      const responseElement = document.createElement('div');
+      responseElement.textContent = response;
+      responseContainer.appendChild(responseElement);
+      responseContainer.scrollTop = responseContainer.scrollHeight;
     });
   </script>
 </body>

@@ -4,14 +4,14 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
-const path = require('path');  // Add path module
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
 const dataFilePath = 'plotData.json';
-const COMMAND = 'battery_charger_misc_read 5000';  // Command to send through the serial port
+const COMMAND = 'battery_charger_misc_read 5000';  // Default command
 
 let plotData = {
   labels: [],
@@ -60,6 +60,9 @@ if (!plotData.labels || plotData.labels.length === 0) {
   fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
 }
 
+// Middleware to parse JSON bodies
+app.use(express.json());
+
 // Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -84,7 +87,7 @@ port.on('error', function(err) {
 
 port.on('open', function() {
   console.log('Port opened');
-  // Write COMMAND to the COM port to initiate data transmission
+  // Write the default command to the COM port to initiate data transmission
   port.write(`${COMMAND}\n`, function(err) {
     if (err) {
       return console.log('Error on write: ', err.message);
@@ -94,6 +97,7 @@ port.on('open', function() {
 
   parser.on('data', function(data) {
     console.log('Data received: ', data);
+    io.emit('commandResponse', data); // Emit raw data for the console
     const parsedData = parseData(data);
     if (parsedData) {
       plotData.labels.push(parsedData.VbatAge);
@@ -101,13 +105,23 @@ port.on('open', function() {
       plotData.ibat.push(parsedData.Ibat);
       plotData.soc.push(parsedData.soc);
       fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
-      io.emit('serialData', {
-        Vbat: parsedData.Vbat,
-        Ibat: parsedData.Ibat,
-        VbatAge: parsedData.VbatAge,
-        soc: parsedData.soc
-      });
+      io.emit('serialData', parsedData); // Emit parsed data for the plot
     }
+  });
+});
+
+io.on('connection', (socket) => {
+  console.log('Client connected');
+
+  socket.on('sendCommand', (command) => {
+    console.log(`Command received: ${command}`);
+    port.write(`${command}\n`, function(err) {
+      if (err) {
+        console.log('Error on write: ', err.message);
+      } else {
+        console.log(`Command sent: ${command}`);
+      }
+    });
   });
 });
 
