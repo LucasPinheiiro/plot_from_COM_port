@@ -70,6 +70,19 @@
     #sendButton:hover {
       opacity: 1;
     }
+    #historyContainer {
+      margin-top: 10px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .historyItem {
+      cursor: pointer;
+      color: blue;
+      text-decoration: underline;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -80,15 +93,17 @@
     <div id="consoleContainer">
       <div id="responseContainer"></div>
       <div id="inputContainer">
-        <input type="text" id="commandInput" placeholder="battery_charger_misc_read">
+        <input type="text" id="commandInput" placeholder="Enter command">
         <button id="sendButton">Send Command</button>
         <button id="resetButton">Reset Data</button>
       </div>
+      <div id="historyContainer"></div>
     </div>
   </div>
 
   <script>
     const socket = io();
+    let commandHistory = [];
 
     const ctx = document.getElementById('combinedChart').getContext('2d');
     const combinedChart = new Chart(ctx, {
@@ -206,9 +221,39 @@
         });
     });
 
-    document.getElementById('sendButton').addEventListener('click', function() {
+    function updateHistory(command) {
+      commandHistory.unshift(command);
+      if (commandHistory.length > 5) {
+        commandHistory.pop();
+      }
+      const historyContainer = document.getElementById('historyContainer');
+      historyContainer.innerHTML = '';
+      commandHistory.forEach((cmd, index) => {
+        const historyItem = document.createElement('div');
+        historyItem.textContent = cmd;
+        historyItem.className = 'historyItem';
+        historyItem.addEventListener('click', () => {
+          document.getElementById('commandInput').value = cmd;
+        });
+        historyContainer.appendChild(historyItem);
+      });
+    }
+
+    function sendCommand() {
       const command = document.getElementById('commandInput').value;
-      socket.emit('sendCommand', command);
+      if (command.trim() !== '') {
+        socket.emit('sendCommand', command);
+        updateHistory(command);
+        document.getElementById('commandInput').value = '';
+      }
+    }
+
+    document.getElementById('sendButton').addEventListener('click', sendCommand);
+
+    document.getElementById('commandInput').addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        sendCommand();
+      }
     });
 
     socket.on('commandResponse', function(response) {
