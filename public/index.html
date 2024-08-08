@@ -18,6 +18,7 @@
       flex-direction: column;
       align-items: center;
       width: 90%;
+      position: relative;
     }
     #resetButton {
       padding: 10px 20px;
@@ -83,12 +84,32 @@
       text-decoration: underline;
       margin-top: 5px;
     }
+    #timeDifference {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      border: 1px solid black;
+      padding: 5px;
+      z-index: 10;
+      display: none;
+    }
+    #closeButton {
+      cursor: pointer;
+      float: right;
+      margin-left: 10px;
+      color: red;
+    }
   </style>
 </head>
 <body>
   <div id="mainContainer">
     <div id="plotContainer">
       <canvas id="combinedChart" width="400" height="200"></canvas>
+      <div id="timeDifference">
+        <span id="timeDifferenceText"></span>
+        <span id="closeButton">✖</span>
+      </div>
     </div>
     <div id="consoleContainer">
       <div id="responseContainer"></div>
@@ -104,8 +125,30 @@
   <script>
     const socket = io();
     let commandHistory = [];
+    let selectedPoints = [];
 
     const ctx = document.getElementById('combinedChart').getContext('2d');
+
+    // Custom plugin to draw vertical dashed lines
+    const verticalLinePlugin = {
+      id: 'verticalLinePlugin',
+      afterDraw: (chart) => {
+        const ctx = chart.ctx;
+        selectedPoints.forEach((point) => {
+          const x = chart.scales.x.getPixelForValue(point.x);
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([5, 5]);
+          ctx.moveTo(x, chart.chartArea.top);
+          ctx.lineTo(x, chart.chartArea.bottom);
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    };
+
     const combinedChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -183,8 +226,42 @@
             },
             offset: true
           }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                label += Math.round(context.raw.y);
+                return label;
+              }
+            }
+          }
+        },
+        onClick: (e) => {
+          const points = combinedChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+          if (points.length) {
+            const point = points[0];
+            const time = combinedChart.data.labels[point.index];
+            if (selectedPoints.length < 2) {
+              selectedPoints.push({ x: time });
+            } else {
+              selectedPoints = [{ x: time }];
+            }
+            combinedChart.update();
+            if (selectedPoints.length === 2) {
+              const timeDifference = Math.abs(selectedPoints[1].x - selectedPoints[0].x);
+              const timeDifferenceElement = document.getElementById('timeDifference');
+              document.getElementById('timeDifferenceText').innerText = `Time Difference: ${Math.round(timeDifference)} seconds`;
+              timeDifferenceElement.style.display = 'block';
+            }
+          }
         }
-      }
+      },
+      plugins: [verticalLinePlugin]
     });
 
     fetch('/initial-data')
@@ -217,7 +294,9 @@
           combinedChart.data.datasets[0].data = [];
           combinedChart.data.datasets[1].data = [];
           combinedChart.data.datasets[2].data = [];
+          selectedPoints = []; // Clear the selected points array
           combinedChart.update();
+          document.getElementById('timeDifference').style.display = 'none'; // Hide time difference text
         });
     });
 
@@ -254,6 +333,12 @@
       if (event.key === 'Enter') {
         sendCommand();
       }
+    });
+
+    document.getElementById('closeButton').addEventListener('click', function() {
+      selectedPoints = [];
+      combinedChart.update();
+      document.getElementById('timeDifference').style.display = 'none';
     });
 
     socket.on('commandResponse', function(response) {
