@@ -20,17 +20,22 @@
       width: 90%;
       position: relative;
     }
-    #resetButton {
+    #resetButton, #saveButton {
       padding: 10px 20px;
-      background-color: red;
       margin-left: 10px;
       color: white;
       border: none;
       cursor: pointer;
       opacity: 0.6;
     }
-    #resetButton:hover {
+    #resetButton {
+      background-color: red;
+    }
+    #resetButton:hover, #saveButton:hover {
       opacity: 1;
+    }
+    #saveButton {
+      background-color: blue;
     }
     #consoleContainer {
       margin-top: 10px;
@@ -69,7 +74,7 @@
       opacity: 0.6;
     }
     #sendButton:hover {
-      opacity: 1;
+        opacity: 1;
     }
     #historyContainer {
       margin-top: 10px;
@@ -117,6 +122,7 @@
         <input type="text" id="commandInput" placeholder="Enter command">
         <button id="sendButton">Send Command</button>
         <button id="resetButton">Reset Data</button>
+        <button id="saveButton">Save Plot and Data</button>
       </div>
       <div id="historyContainer"></div>
     </div>
@@ -235,7 +241,7 @@
                 if (label) {
                   label += ': ';
                 }
-                label += Math.round(context.raw.y);
+                label += Math.round(context.raw.y); // Simplified to round to the nearest integer
                 return label;
               }
             }
@@ -298,6 +304,29 @@
           combinedChart.update();
           document.getElementById('timeDifference').style.display = 'none'; // Hide time difference text
         });
+    });
+
+    document.getElementById('saveButton').addEventListener('click', function() {
+      // Save plot as image
+      const link = document.createElement('a');
+      link.href = combinedChart.toBase64Image();
+      link.download = 'plot.png';
+      link.click();
+
+      // Save data as JSON
+      const data = {
+        labels: combinedChart.data.labels,
+        vbat: combinedChart.data.datasets[0].data.map(point => point.y),
+        ibat: combinedChart.data.datasets[1].data.map(point => point.y),
+        soc: combinedChart.data.datasets[2].data.map(point => point.y)
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plotData.json';
+      a.click();
+      URL.revokeObjectURL(url);
     });
 
     function updateHistory(command) {
