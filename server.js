@@ -10,6 +10,8 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+const { exec } = require('child_process');
+
 const dataFilePath = 'plotData.json';
 const COMMAND = 'battery_charger_misc_read 5000';  // Default command
 
@@ -71,6 +73,22 @@ app.get('/initial-data', (req, res) => {
   res.json(plotData);
 });
 
+app.get('/calculate-capacity', (req, res) => {
+  exec('py calculate_capacity.py', (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing Python script: ${error}`);
+      return res.status(500).json({ error: 'Error calculating capacity' });
+    }
+    const output = stdout.trim();
+    const [capacity, action] = output.split(' ');
+
+    res.json({
+      capacity: `${capacity} mAh`,
+      action: action === 'charging' ? 'charging' : 'discharging',
+    });
+  });
+});
+
 // Endpoint to reset data
 app.post('/reset-data', (req, res) => {
   plotData = { labels: [], vbat: [], ibat: [], soc: [] };
@@ -87,13 +105,6 @@ port.on('error', function(err) {
 
 port.on('open', function() {
   console.log('Port opened');
-  // Write the default command to the COM port to initiate data transmission
-  port.write(`${COMMAND}\n`, function(err) {
-    if (err) {
-      return console.log('Error on write: ', err.message);
-    }
-    console.log(`Message written: ${COMMAND}`);
-  });
 
   parser.on('data', function(data) {
     console.log('Data received: ', data);

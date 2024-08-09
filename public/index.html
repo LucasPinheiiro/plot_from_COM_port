@@ -105,6 +105,11 @@
       margin-left: 10px;
       color: red;
     }
+    #capacityLabel {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -115,6 +120,7 @@
         <span id="timeDifferenceText"></span>
         <span id="closeButton">✖</span>
       </div>
+      <div id="capacityLabel">Estimated capacity: Calculating...</div>
     </div>
     <div id="consoleContainer">
       <div id="responseContainer"></div>
@@ -132,6 +138,7 @@
     const socket = io();
     let commandHistory = [];
     let selectedPoints = [];
+    let pointCounter = 0;
 
     const ctx = document.getElementById('combinedChart').getContext('2d');
 
@@ -290,6 +297,15 @@
         combinedChart.data.datasets[1].data.push({ x: absoluteAge, y: data.Ibat });
         combinedChart.data.datasets[2].data.push({ x: absoluteAge, y: data.soc });
         combinedChart.update();
+
+        pointCounter++;
+        if (pointCounter % 10 === 0) {
+          fetch('/calculate-capacity')
+            .then(response => response.json())
+            .then(result => {
+              document.getElementById('capacityLabel').innerText = `Estimated capacity from ${result.action}: ${result.capacity}`;
+            });
+        }
       }
     });
 
