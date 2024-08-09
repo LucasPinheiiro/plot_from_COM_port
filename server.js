@@ -80,7 +80,7 @@ app.get('/calculate-capacity', (req, res) => {
       return res.status(500).json({ error: 'Error calculating capacity' });
     }
     const output = stdout.trim();
-    const [capacity, action] = output.split(' ');
+    const [capacity, unity, action] = output.split(' ');
 
     res.json({
       capacity: `${capacity} mAh`,
