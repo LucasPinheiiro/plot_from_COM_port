@@ -357,7 +357,9 @@
         historyItem.textContent = cmd;
         historyItem.className = 'historyItem';
         historyItem.addEventListener('click', () => {
-          document.getElementById('commandInput').value = cmd;
+          const commandInput = document.getElementById('commandInput');
+          commandInput.value = cmd;
+          commandInput.focus();
         });
         historyContainer.appendChild(historyItem);
       });
