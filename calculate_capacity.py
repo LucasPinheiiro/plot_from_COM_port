@@ -29,7 +29,7 @@ def determine_capacity_type(param):
         return 'charging'  # Charging
 
 def main():
-    file_path = 'plotdata.json'
+    file_path = 'plotData.json'
     
     # Step 1: Load the JSON file
     data = load_json_file(file_path)

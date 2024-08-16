@@ -73,6 +73,7 @@ app.get('/initial-data', (req, res) => {
   res.json(plotData);
 });
 
+// Endpoint to calculate capacity
 app.get('/calculate-capacity', (req, res) => {
   exec('py calculate_capacity.py', (error, stdout, stderr) => {
     if (error) {
@@ -94,6 +95,26 @@ app.post('/reset-data', (req, res) => {
   plotData = { labels: [], vbat: [], ibat: [], soc: [] };
   fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
   res.send('Data reset');
+});
+
+// Endpoint to update server data with merged data from the client
+app.post('/update-server-data', (req, res) => {
+  try {
+    const newData = req.body;
+
+    // Merge the incoming data with the current in-memory data
+    plotData.labels.push(...newData.labels);
+    plotData.vbat.push(...newData.vbat);
+    plotData.ibat.push(...newData.ibat);
+    plotData.soc.push(...newData.soc);
+
+    res.json({ success: true });
+    console.log(plotData);
+    fs.writeFileSync(dataFilePath, JSON.stringify(plotData, null, 2));
+  } catch (error) {
+    console.error('Error updating server data:', error);
+    res.status(500).json({ success: false, message: 'Failed to update server data.' });
+  }
 });
 
 const port = new SerialPort({ path: 'COM13', baudRate: 115200 });

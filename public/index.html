@@ -7,12 +7,80 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* Universal button style */
+    /* From Uiverse.io by JasonMep */ 
+    .button {
+      color: #ecf0f1;
+      font-size: 17px;
+      background-color: #e67e22;
+      border: 1px solid #f39c12;
+      border-radius: 5px;
+      cursor: pointer;
+      padding: 10px;
+      box-shadow: 0px 6px 0px #d35400;
+      transition: all 0.1s;
+    }
+  
+    .button:active {
+      box-shadow: 0px 2px 0px #d35400;
+      position: relative;
+      top: 2px;
+    }
+  
+    /* Specific button colors */
+    #sendButton {
+      background-color: #2ecc71;  /* Green */
+      border-color: #27ae60;
+      box-shadow: 0px 6px 0px #229954;
+    }
+  
+    #sendButton:active {
+      box-shadow: 0px 2px 0px #229954;
+    }
+  
+    #resetButton {
+      background-color: #e74c3c;  /* Red */
+      border-color: #c0392b;
+      box-shadow: 0px 6px 0px #a93226;
+    }
+  
+    #resetButton:active {
+      box-shadow: 0px 2px 0px #a93226;
+    }
+  
+    #saveButton {
+      background-color: #3498db;  /* Blue */
+      border-color: #2980b9;
+      box-shadow: 0px 6px 0px #2471a3;
+    }
+  
+    #saveButton:active {
+      box-shadow: 0px 2px 0px #2471a3;
+    }
+  
+    #openFileButton {
+      background-color: #f39c12;  /* Orange */
+      border-color: #e67e22;
+      box-shadow: 0px 6px 0px #d35400;
+    }
+  
+    #openFileButton:active {
+      box-shadow: 0px 2px 0px #d35400;
+    }
+  
+    /* Add spacing between buttons */
+    .button:not(:last-child) {
+      margin-right: 10px;
+    }
+  
+    /* Additional CSS for layout and other elements */
     #mainContainer {
       display: flex;
       flex-direction: column;
       align-items: center;
       width: 100%;
     }
+  
     #plotContainer {
       display: flex;
       flex-direction: column;
@@ -20,23 +88,7 @@
       width: 90%;
       position: relative;
     }
-    #resetButton, #saveButton {
-      padding: 10px 20px;
-      margin-left: 10px;
-      color: white;
-      border: none;
-      cursor: pointer;
-      opacity: 0.6;
-    }
-    #resetButton {
-      background-color: red;
-    }
-    #resetButton:hover, #saveButton:hover {
-      opacity: 1;
-    }
-    #saveButton {
-      background-color: blue;
-    }
+  
     #consoleContainer {
       margin-top: 10px;
       width: 90%;
@@ -46,6 +98,7 @@
       border: 1px solid #00000000;
       padding: 10px;
     }
+  
     #responseContainer {
       width: 100%;
       max-height: 100px;
@@ -54,28 +107,20 @@
       margin-bottom: 10px;
       padding: 10px;
     }
+  
     #inputContainer {
       display: flex;
       width: 100%;
       justify-content: space-between;
     }
+  
     #commandInput {
       flex: 1;
       padding: 10px;
       border: 1px solid rgb(0, 0, 0);
       margin-right: 10px;
     }
-    #sendButton {
-      padding: 10px 20px;
-      background-color: rgb(48, 156, 48);
-      color: white;
-      border: none;
-      cursor: pointer;
-      opacity: 0.6;
-    }
-    #sendButton:hover {
-        opacity: 1;
-    }
+  
     #historyContainer {
       margin-top: 10px;
       width: 100%;
@@ -83,12 +128,14 @@
       flex-direction: column;
       align-items: center;
     }
+  
     .historyItem {
       cursor: pointer;
       color: blue;
       text-decoration: underline;
       margin-top: 5px;
     }
+  
     #timeDifference {
       position: absolute;
       top: 10px;
@@ -99,18 +146,23 @@
       z-index: 10;
       display: none;
     }
+  
     #closeButton {
       cursor: pointer;
       float: right;
       margin-left: 10px;
       color: red;
     }
+  
     #capacityLabel {
       margin-top: 10px;
       font-size: 16px;
       font-weight: bold;
     }
   </style>
+  
+  
+  
 </head>
 <body>
   <div id="mainContainer">
@@ -126,22 +178,25 @@
       <div id="responseContainer"></div>
       <div id="inputContainer">
         <input type="text" id="commandInput" placeholder="Enter command">
-        <button id="sendButton">Send Command</button>
-        <button id="resetButton">Reset Data</button>
-        <button id="saveButton">Save Plot and Data</button>
+        <button id="sendButton" class="button">Send Command</button>
+        <button id="resetButton" class="button">Reset Data</button>
+        <button id="saveButton" class="button">Save Plot and Data</button>
+        <button id="openFileButton" class="button">Open File</button>
+        <input type="file" id="fileInput" style="display: none;" accept=".json"/>
       </div>
+      
       <div id="historyContainer"></div>
     </div>
   </div>
-
   <script>
     const socket = io();
     let commandHistory = [];
     let selectedPoints = [];
     let pointCounter = 0;
-
+    let isUnderVoltage = false;
+  
     const ctx = document.getElementById('combinedChart').getContext('2d');
-
+  
     // Custom plugin to draw vertical dashed lines
     const verticalLinePlugin = {
       id: 'verticalLinePlugin',
@@ -161,7 +216,7 @@
         });
       }
     };
-
+  
     const combinedChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -248,7 +303,7 @@
                 if (label) {
                   label += ': ';
                 }
-                label += Math.round(context.raw.y); // Simplified to round to the nearest integer
+                label += Math.round(context.raw.y);
                 return label;
               }
             }
@@ -276,7 +331,7 @@
       },
       plugins: [verticalLinePlugin]
     });
-
+  
     fetch('/initial-data')
       .then(response => response.json())
       .then(data => {
@@ -288,7 +343,7 @@
           combinedChart.update();
         }
       });
-
+  
     socket.on('serialData', function(data) {
       if (data) {
         const absoluteAge = data.VbatAge;
@@ -297,18 +352,24 @@
         combinedChart.data.datasets[1].data.push({ x: absoluteAge, y: data.Ibat });
         combinedChart.data.datasets[2].data.push({ x: absoluteAge, y: data.soc });
         combinedChart.update();
-
-        pointCounter++;
-        if (pointCounter % 10 === 0) {
-          fetch('/calculate-capacity')
-            .then(response => response.json())
-            .then(result => {
-              document.getElementById('capacityLabel').innerText = `Estimated capacity from ${result.action}: ${result.capacity}`;
-            });
-        }
+  
+      // Check if Vbat is under or above 18V (18000 mV)
+      const capacityLabel = document.getElementById('capacityLabel');
+      if (data.Vbat < 18000 && !isUnderVoltage) {
+        capacityLabel.innerText += " - under voltage";
+        isUnderVoltage = true;
+      } else if (data.Vbat >= 18000 && isUnderVoltage) {
+        capacityLabel.innerText = capacityLabel.innerText.replace(" - under voltage", "");
+        isUnderVoltage = false;
       }
-    });
 
+      if (!isUnderVoltage) {
+        pointCounter++;
+        recalculateCapacity();
+      }
+    }
+  });
+  
     document.getElementById('resetButton').addEventListener('click', function() {
       fetch('/reset-data', { method: 'POST' })
         .then(() => {
@@ -319,16 +380,19 @@
           selectedPoints = []; // Clear the selected points array
           combinedChart.update();
           document.getElementById('timeDifference').style.display = 'none'; // Hide time difference text
+          document.getElementById('capacityLabel').innerText = 'Estimated capacity: Calculating...';
+          isUnderVoltage = false;
+          pointCounter = 0;
         });
     });
-
+  
     document.getElementById('saveButton').addEventListener('click', function() {
       // Save plot as image
       const link = document.createElement('a');
       link.href = combinedChart.toBase64Image();
       link.download = 'plot.png';
       link.click();
-
+  
       // Save data as JSON
       const data = {
         labels: combinedChart.data.labels,
@@ -344,7 +408,7 @@
       a.click();
       URL.revokeObjectURL(url);
     });
-
+  
     function updateHistory(command) {
       commandHistory.unshift(command);
       if (commandHistory.length > 5) {
@@ -359,12 +423,12 @@
         historyItem.addEventListener('click', () => {
           const commandInput = document.getElementById('commandInput');
           commandInput.value = cmd;
-          commandInput.focus();
+          commandInput.focus();  // Place the cursor in the input field
         });
         historyContainer.appendChild(historyItem);
       });
     }
-
+  
     function sendCommand() {
       const command = document.getElementById('commandInput').value;
       if (command.trim() !== '') {
@@ -373,21 +437,21 @@
         document.getElementById('commandInput').value = '';
       }
     }
-
+  
     document.getElementById('sendButton').addEventListener('click', sendCommand);
-
+  
     document.getElementById('commandInput').addEventListener('keydown', function(event) {
       if (event.key === 'Enter') {
         sendCommand();
       }
     });
-
+  
     document.getElementById('closeButton').addEventListener('click', function() {
       selectedPoints = [];
       combinedChart.update();
       document.getElementById('timeDifference').style.display = 'none';
     });
-
+  
     socket.on('commandResponse', function(response) {
       const responseContainer = document.getElementById('responseContainer');
       const responseElement = document.createElement('div');
@@ -395,6 +459,86 @@
       responseContainer.appendChild(responseElement);
       responseContainer.scrollTop = responseContainer.scrollHeight;
     });
+
+    document.getElementById('openFileButton').addEventListener('click', function() {
+      document.getElementById('fileInput').click();
+    });
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const newJsonData = JSON.parse(e.target.result);
+            mergeAndLoadChartData(newJsonData);
+            updateServerData(newJsonData); // Send updated data to the server for capacity calculation
+          } catch (error) {
+            alert('Error loading JSON file. Please ensure it is formatted correctly.');
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    function mergeAndLoadChartData(newData) {
+      if (newData.labels && newData.vbat && newData.ibat && newData.soc) {
+        // Merge new data with existing chart data
+        combinedChart.data.labels.push(...newData.labels);
+        combinedChart.data.datasets[0].data.push(...newData.vbat.map((value, index) => ({ x: newData.labels[index], y: value })));
+        combinedChart.data.datasets[1].data.push(...newData.ibat.map((value, index) => ({ x: newData.labels[index], y: value })));
+        combinedChart.data.datasets[2].data.push(...newData.soc.map((value, index) => ({ x: newData.labels[index], y: value })));
+        combinedChart.update();
+      } else {
+        alert('Invalid JSON structure.');
+      }
+    }
+
+    function loadChartData(data) {
+      if (data.labels && data.vbat && data.ibat && data.soc) {
+        combinedChart.data.labels = data.labels;
+        combinedChart.data.datasets[0].data = data.vbat.map((value, index) => ({ x: data.labels[index], y: value }));
+        combinedChart.data.datasets[1].data = data.ibat.map((value, index) => ({ x: data.labels[index], y: value }));
+        combinedChart.data.datasets[2].data = data.soc.map((value, index) => ({ x: data.labels[index], y: value }));
+        combinedChart.update();
+      } else {
+        alert('Invalid JSON structure.');
+      }
+    }
+
+    function updateServerData(mergedData) {
+      fetch('/update-server-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(mergedData),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          recalculateCapacity(); // Trigger capacity recalculation with updated data
+        } else {
+          alert('Error updating server data: ' + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error updating server data:', error);
+        alert('An error occurred while updating the server data.');
+      });
+    }
+
+    function recalculateCapacity() {
+    fetch('/calculate-capacity')
+      .then(response => response.json())
+      .then(result => {
+        document.getElementById('capacityLabel').innerText = `Estimated capacity from ${result.action}: ${result.capacity}`;
+      })
+      .catch(error => {
+        console.error('Error calculating capacity:', error);
+      });
+  }
   </script>
+  
 </body>
 </html>
