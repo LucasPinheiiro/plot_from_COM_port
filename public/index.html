@@ -478,6 +478,8 @@
           }
         };
         reader.readAsText(file);
+        // Reset the file input value to allow selecting the same file again
+        event.target.value = '';
       }
     });
 
